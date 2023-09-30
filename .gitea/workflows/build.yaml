@@ -1,0 +1,89 @@
+name: Build application, create docker container, deploy docker container
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-application:
+    name: Build application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Cache maven and java
+        id: cache-binaries
+        uses: actions/cache@v3
+        with:
+          path: |
+            /workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/apache-maven-3.9.4
+            /workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/jdk-17.0.7+7
+            /root/.m2/repository
+            /root/.npm
+          key: ${{ runner.os }}-binaries
+      - name: Download maven
+        if: steps.cache-binaries.outputs.cache-hit != 'true'
+        run: wget https://dlcdn.apache.org/maven/maven-3/3.9.4/binaries/apache-maven-3.9.4-bin.tar.gz
+      - name: Download java
+        if: steps.cache-binaries.outputs.cache-hit != 'true'
+        run: wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.7%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.7_7.tar.gz
+      - name: Unpack maven
+        if: steps.cache-binaries.outputs.cache-hit != 'true'
+        run: tar -xvf apache-maven-3.9.4-bin.tar.gz # apache-maven-3.9.4
+      - name: Unpack java
+        if: steps.cache-binaries.outputs.cache-hit != 'true'
+        run: tar -xvf OpenJDK17U-jdk_x64_linux_hotspot_17.0.7_7.tar.gz # jdk-17.0.7+7
+      - name: Set maven home
+        run: M2_HOME=$(pwd)/apache-maven-3.9.4 && echo "$M2_HOME/bin" >> $GITHUB_PATH
+      - name: Set java home
+        run: JAVA_HOME=$(pwd)/jdk-17.0.7+7 && echo "$JAVA_HOME/bin" >> $GITHUB_PATH
+      - name: Run maven package
+        run: 'mvn package -B -DskipTests'
+      - name: Cache output
+        id: cache-output
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            /workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/*
+            !/workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/apache-maven-3.9.4
+            !/workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/jdk-17.0.7+7
+          key: ${{ runner.os }}-output-${{ gitea.run_id }}
+  create-docker-container:
+    name: Create docker container
+    runs-on: docker-stable
+    needs: [ build-application ]
+    defaults:
+      run:
+        shell: sh
+    steps:
+      - name: Install container dependencies
+        run: /bin/sh -c "apk add nodejs npm tar"
+      - name: Restore cached output
+        uses: actions/cache/restore@v3
+        id: restore-cache-output
+        with:
+          path: |
+            /workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/*
+            !/workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/apache-maven-3.9.4
+            !/workspace/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}/jdk-17.0.7+7
+          key: ${{ runner.os }}-output-${{ gitea.run_id }}
+      - name: Login to docker
+        run: docker login -u faye -p ${{ secrets.CI_TOKEN }} git.fayedev.de
+      - name: Build docker container
+        run: docker build -t git.fayedev.de/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}:latest .
+      - name: Push docker container
+        run: docker push git.fayedev.de/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}:latest
+      - name: Cleanup old images
+        run: docker image prune -f
+  deploy-docker-container:
+    name: Deploy docker container
+    runs-on: docker-stable
+    needs: [ create-docker-container ]
+    defaults:
+      run:
+        shell: sh
+    steps:
+      - name: Remove old container and image
+        run: docker rm -fv ${{ gitea.event.repository.name }} || true
+      - name: Deploy docker container
+        run: docker run --rm --name ${{ gitea.event.repository.name }} -p 8082:8080 --network="bridge" -d git.fayedev.de/${{ gitea.repository_owner }}/${{ gitea.event.repository.name }}:latest

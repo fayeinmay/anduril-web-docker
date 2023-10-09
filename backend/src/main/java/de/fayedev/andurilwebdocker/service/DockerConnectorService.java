@@ -54,6 +54,8 @@ public class DockerConnectorService {
 
     private void startContainer(String fileName) {
         try {
+            fileBuildLogs.remove(fileName);
+
             dockerClient.pullImageCmd(dockerImage).exec(new PullImageResultCallback()).awaitCompletion();
             String id = dockerClient.createContainerCmd(dockerImage)
                     .withHostConfig(HostConfig.newHostConfig()
@@ -65,7 +67,7 @@ public class DockerConnectorService {
             dockerClient.startContainerCmd(id).exec();
 
 
-            LogContainerCmd logContainerCmd = dockerClient.logContainerCmd(id).withStdOut(true).withStdErr(true).withFollowStream(true);
+            LogContainerCmd logContainerCmd = dockerClient.logContainerCmd(id).withStdErr(true).withFollowStream(true);
 
             logContainerCmd.exec(new ResultCallback.Adapter<>() {
                 @Override

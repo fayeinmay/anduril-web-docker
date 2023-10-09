@@ -1,134 +1,144 @@
-<script setup>
-import DeviceItem from './components/DeviceItem.vue'
-</script>
+<script setup></script>
 
 <template>
-  <h2>Last Updated: {{ new Date(lastUpdated).toLocaleString() }}</h2>
-  <DeviceItem v-for="device in devices" :key="device.ip" :iconType="device.icon">
-    <template #subType>{{ device.subType }}</template>
-    <template #name>{{ device.name }}</template>
-    <template #ip>{{ device.ip }}</template>
-    <template #mac>{{ device.mac }}</template>
-  </DeviceItem>
+  <div>
+    Upload (only cfg and hwdef files!):
+    <input type="file" @change="selectFilesForUpload" ref="file" multiple />
+    <button @click="uploadFiles">Upload!</button>
+    <ul>
+      <li v-for="file in files" :key="file.name">{{ file.name }}</li>
+    </ul>
+    <button @click="resetFiles">Reset to git base state!</button>
+    Uploaded files:
+    <ul>
+      <li v-for="file in onlineFiles" :key="file">
+        {{ file.name }}
+        <button @click="removeFile(file.name)">Delete</button>
+        <button v-show="isCfg(file.name)" @click="buildFile(file.name)">Build</button>
+        <button v-show="isCfg(file.name) && file.buildName" @click="downloadFile(file.buildName)">Download hex</button>
+        {{ file.logs }}
+      </li>
+    </ul>
+  </div>
 </template>
 
 <script>
 import axios from 'axios'
-import questionMark from '@iconify-icons/tabler/question-mark'
-import ethernetIcon from '@iconify-icons/fa-solid/ethernet'
-import wifiOff from '@iconify-icons/tabler/wifi-off'
-import wifi0 from '@iconify-icons/tabler/wifi-0'
-import wifi1 from '@iconify-icons/tabler/wifi-1'
-import wifi2 from '@iconify-icons/tabler/wifi-2'
-import wifi from '@iconify-icons/tabler/wifi'
 
 export default {
   data() {
     return {
-      devices: [],
-      lastUpdated: null,
-      darkMode: '#181818',
-      darkModeInverted: '#ffffff',
-      icons: {
-        questionMark,
-        ethernetIcon,
-        wifiOff,
-        wifi0,
-        wifi1,
-        wifi2,
-        wifi
-      }
+      files: [],
+      onlineFiles: []
     }
   },
   mounted() {
-    this.getDevices()
-
-    let queryString = window.location.search
-    let urlParams = new URLSearchParams(queryString)
-
-    if (urlParams.get('dark') === 'true') {
-      this.darkMode = '#ffffff'
-      this.darkModeInverted = '#181818'
-      // Don't see another way?
-      document.body.style.backgroundColor = '#181818'
-      document.body.style.color = '#ffffff'
-    }
+    this.getFiles()
   },
   methods: {
-    getDevices() {
-      axios
-        .get('/api/v1/devices')
-        .then((response) => {
-          if (response.data) {
-            for (let device of response.data.devices) {
-              if (device.type === 'ETHERNET') {
-                device.icon = this.icons.ethernetIcon
-              } else if (device.type === 'WIFI') {
-                this.setSubType(device)
-                this.setSignalStrength(device)
-              } else {
-                device.icon = this.icons.questionMark
-              }
-            }
+    isCfg(name) {
+      return name.includes('cfg')
+    },
+    selectFilesForUpload(e) {
+      if (this.isValidFiles(e.target.files)) {
+        this.files = e.target.files
+      } else {
+        this.resetUploadState()
+      }
+    },
+    isValidFile(name) {
+      return name.startsWith('cfg') || name.startsWith('hwdef')
+    },
+    isValidFiles(files) {
+      for (let file of files) {
+        if (!this.isValidFile(file.name)) {
+          return false
+        }
+      }
+      return true
+    },
+    uploadFiles() {
+      const formData = new FormData()
+      for (let file of this.files) {
+        formData.append('file', file)
+      }
 
-            this.devices = response.data.devices
-            this.lastUpdated = response.data.lastUpdated
-          }
+      const headers = { 'Content-Type': 'multipart/form-data' }
+      axios
+          .post('/api/v1/files', formData, { headers })
+          .then((res) => {
+            this.getFiles()
+
+            if (res.status === 200) {
+              this.resetUploadState()
+            }
+          })
+          .catch((e) => {
+            console.log(e)
+          })
+    },
+    getFiles() {
+      axios
+          .get('/api/v1/files')
+          .then((res) => {
+            this.onlineFiles = res.data
+          })
+          .catch((e) => {
+            console.log(e)
+          })
+    },
+    buildFile(name) {
+      axios
+          .patch(`/api/v1/files/${name}/build`)
+          .then(() => {
+            // Maybe wait because of race condition
+            this.getFiles()
+          })
+          .catch((e) => {
+            console.log(e)
+          })
+    },
+    downloadFile(buildName) {
+      axios
+        .get(`/api/v1/files/${buildName}`)
+        .then((res) => {
+          const url = window.URL.createObjectURL(new Blob([res.data]))
+          const link = document.createElement('a')
+          link.href = url
+          link.setAttribute('download', buildName)
+          document.body.appendChild(link)
+          link.click()
         })
         .catch((e) => {
           console.log(e)
         })
     },
-    setSubType(device) {
-      if (device.subType === 'WIFI_2_4') {
-        device.subType = '2.4'
-      } else if (device.subType === 'WIFI_5') {
-        device.subType = '5'
-      }
+    removeFile(name) {
+      axios
+        .delete(`/api/v1/${name}`)
+        .then(() => {
+          this.getFiles()
+        })
+        .catch((e) => {
+          console.log(e)
+        })
     },
-    setSignalStrength(device) {
-      if (device.signalStrength) {
-        switch (device.signalStrength) {
-          case 1:
-            device.icon = this.icons.wifi0
-            break
-          case 2:
-            device.icon = this.icons.wifi1
-            break
-          case 3:
-            device.icon = this.icons.wifi1
-            break
-          case 4:
-            device.icon = this.icons.wifi2
-            break
-          case 5:
-            device.icon = this.icons.wifi
-            break
-        }
-      } else {
-        device.icon = this.icons.wifiOff
-      }
+    resetFiles() {
+      axios
+        .patch('/api/v1/files/reset')
+        .then(() => {
+          this.getFiles()
+        })
+        .catch((e) => {
+          console.log(e)
+        })
+    },
+    resetUploadState() {
+      this.files = []
+      this.$refs.file.value = null
     }
   }
 }
 </script>
 
-<style>
-.ribbon {
-  color: v-bind('darkMode') !important;
-}
-h2 {
-  color: v-bind('darkMode') !important;
-  display: flex;
-  place-items: center;
-  place-content: center;
-  grid-column: 1/-1;
-}
-h3 {
-  color: v-bind('darkMode') !important;
-}
-svg {
-  background: v-bind('darkModeInverted') !important;
-  color: v-bind('darkMode') !important;
-}
-</style>
+<style></style>

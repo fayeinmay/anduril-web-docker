@@ -7,7 +7,7 @@
     <artifactId>anduril-web-docker</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
-	
+
     <name>anduril-web-docker</name>
     <description>anduril-web-docker</description>
 

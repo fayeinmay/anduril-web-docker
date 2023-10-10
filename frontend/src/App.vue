@@ -2,39 +2,76 @@
 
 <template>
   <v-app>
-    <v-layout class="rounded rounded-md">
-      <v-main>
+    <v-app-bar app color="white" flat>
+      <v-container>
         <v-form ref="form">
-          <v-file-input
-            :rules="fileRules"
-            v-model="files"
-            :chips="true"
-            :multiple="true"
-            label="Select only cfg or hwdef files!"
-          />
-          <v-btn :disabled="$refs.form ? !$refs.form.isValid : true" @click="uploadFiles"
-            >UPLOAD</v-btn
-          >
+          <v-row align="center">
+            <v-col cols="8">
+              <v-file-input
+                :rules="fileRules"
+                v-model="files"
+                :chips="true"
+                :multiple="true"
+                label="Select only cfg or hwdef files!"
+                class="mt-6"
+              />
+            </v-col>
+            <v-col cols="1">
+              <v-btn :disabled="$refs.form ? !$refs.form.isValid : true" @click="uploadFiles"
+                >Upload</v-btn
+              >
+            </v-col>
+            <v-col cols="3">
+              <v-btn @click="resetFiles">Reset everything</v-btn>
+            </v-col>
+          </v-row>
         </v-form>
+      </v-container>
+    </v-app-bar>
+    <v-main class="bg-grey-lighten-4">
+      <v-container>
+        <v-row>
+          <v-col cols="4">
+            <v-sheet rounded="lg">
+              <v-list rounded="lg">
+                <v-list-item
+                  v-for="file in onlineFiles"
+                  :key="file"
+                  :title="file.name"
+                  :link="true"
+                  @click="selectLog(file.name)"
+                >
+                  <v-btn @click="removeFile(file.name)" class="ma-1">Delete</v-btn>
+                  <v-btn v-show="isCfg(file.name)" @click="buildFile(file.name)" class="ma-1"
+                    >Build</v-btn
+                  >
+                  <v-btn
+                    v-show="isCfg(file.name) && file.buildName"
+                    @click="downloadFile(file.buildName)"
+                    class="ma-1"
+                  >
+                    Download hex
+                  </v-btn>
+                </v-list-item>
+              </v-list>
+            </v-sheet>
+          </v-col>
 
-        <v-btn @click="resetFiles">Reset to git base state!</v-btn>
-        <v-list>
-          <v-list-item v-for="file in onlineFiles" :key="file" :title="file.name">
-            <v-btn @click="removeFile(file.name)">Delete</v-btn>
-            <v-btn v-show="isCfg(file.name)" @click="buildFile(file.name)">Build</v-btn>
-            <v-btn
-              v-show="isCfg(file.name) && file.buildName"
-              @click="downloadFile(file.buildName)"
-            >
-              Download hex
-            </v-btn>
-            <p v-for="(log, index) in file.logs" :key="index">
-              {{ log }}
-            </p>
-          </v-list-item>
-        </v-list>
-      </v-main>
-    </v-layout>
+          <v-col>
+            <v-sheet min-height="70vh" rounded="lg" class="text-center">
+              <v-textarea
+                label="Logs | Click on an entry on the left side after building"
+                :readonly="true"
+                variant="outlined"
+                auto-grow
+                rows="30"
+                v-model="currentLog"
+              ></v-textarea>
+            </v-sheet>
+          </v-col>
+        </v-row>
+      </v-container>
+    </v-main>
   </v-app>
 </template>
 
@@ -49,6 +86,7 @@ export default {
           return value.every((i) => i.name.startsWith('cfg') || i.name.startsWith('hwdef'))
         }
       ],
+      currentLog: [],
       files: [],
       onlineFiles: []
     }
@@ -57,6 +95,9 @@ export default {
     this.getFiles()
   },
   methods: {
+    selectLog(name) {
+      this.currentLog = this.onlineFiles.find((c) => c.name === name).logs
+    },
     isCfg(name) {
       return name.includes('cfg')
     },
@@ -98,6 +139,7 @@ export default {
         .then(() => {
           // Maybe wait because of race condition
           this.getFiles()
+          this.selectLog(name)
         })
         .catch((e) => {
           console.log(e)

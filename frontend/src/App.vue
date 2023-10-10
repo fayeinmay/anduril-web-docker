@@ -28,7 +28,7 @@
         </v-form>
       </v-container>
     </v-app-bar>
-    <v-main class="bg-grey-lighten-4">
+    <v-main class="bg-grey-lighten-3">
       <v-container>
         <v-row>
           <v-col cols="4">
@@ -39,7 +39,7 @@
                   :key="file"
                   :title="file.name"
                   :link="true"
-                  @click="selectLog(file.name)"
+                  @click="openFile(file.name)"
                 >
                   <v-btn @click="removeFile(file.name)" class="ma-1">Delete</v-btn>
                   <v-btn v-show="isCfg(file.name)" @click="buildFile(file.name)" class="ma-1"
@@ -58,13 +58,28 @@
           </v-col>
 
           <v-col>
-            <v-sheet min-height="70vh" rounded="lg" class="text-center">
+            <v-sheet min-height="50vh" rounded="lg">
+              <v-list rounded="lg" style="column-count: 2">
+                <v-list-item v-for="flag in currentFlags" :key="flag">
+                  <v-list-item-title>
+                    {{ flag.name }}
+                  </v-list-item-title>
+                  <template v-slot:prepend="{ isActive }">
+                    <v-list-item-action>
+                      <v-checkbox-btn v-model:model-value="flag.defined"></v-checkbox-btn>
+                    </v-list-item-action>
+                  </template>
+                  <v-text-field :disabled="!flag.defined" :model-value="flag.value"></v-text-field>
+                </v-list-item>
+              </v-list>
+            </v-sheet>
+            <v-sheet min-height="30vh" rounded="lg" class="text-center mt-6">
               <v-textarea
                 label="Logs | Click on an entry on the left side after building"
                 :readonly="true"
                 variant="outlined"
                 auto-grow
-                rows="30"
+                rows="1"
                 v-model="currentLog"
               ></v-textarea>
             </v-sheet>
@@ -87,6 +102,7 @@ export default {
         }
       ],
       currentLog: [],
+      currentFlags: [],
       files: [],
       onlineFiles: []
     }
@@ -95,11 +111,12 @@ export default {
     this.getFiles()
   },
   methods: {
-    selectLog(name) {
+    openFile(name) {
+      this.getFlags(name)
       this.currentLog = this.onlineFiles.find((c) => c.name === name).logs
     },
     isCfg(name) {
-      return name.includes('cfg')
+      return name.startsWith('cfg')
     },
     uploadFiles() {
       if (this.files.isEmpty()) return
@@ -133,13 +150,23 @@ export default {
           console.log(e)
         })
     },
+    getFlags(name) {
+      axios
+        .get(`/api/v1/files/${name}/flags`)
+        .then((res) => {
+          this.currentFlags = res.data
+        })
+        .catch((e) => {
+          console.log(e)
+        })
+    },
     buildFile(name) {
       axios
         .patch(`/api/v1/files/${name}/build`)
         .then(() => {
           // Maybe wait because of race condition
           this.getFiles()
-          this.selectLog(name)
+          this.openFile(name)
         })
         .catch((e) => {
           console.log(e)

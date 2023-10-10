@@ -1,7 +1,9 @@
 package de.fayedev.andurilwebdocker.web;
 
+import de.fayedev.andurilwebdocker.model.AndurilFeatureFlag;
 import de.fayedev.andurilwebdocker.model.AndurilFile;
 import de.fayedev.andurilwebdocker.service.DockerConnectorService;
+import de.fayedev.andurilwebdocker.service.FeatureFlagService;
 import de.fayedev.andurilwebdocker.service.FileProcessingService;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.web.bind.annotation.*;
@@ -16,8 +18,10 @@ public class FileProcessingRestController {
 
     private final FileProcessingService fileProcessingService;
     private final DockerConnectorService dockerConnectorService;
+    private FeatureFlagService featureFlagService;
 
-    public FileProcessingRestController(FileProcessingService fileProcessingService, DockerConnectorService dockerConnectorService) {
+    public FileProcessingRestController(FeatureFlagService featureFlagService, FileProcessingService fileProcessingService, DockerConnectorService dockerConnectorService) {
+        this.featureFlagService = featureFlagService;
         this.fileProcessingService = fileProcessingService;
         this.dockerConnectorService = dockerConnectorService;
     }
@@ -40,6 +44,11 @@ public class FileProcessingRestController {
     @GetMapping("/files/{fileName}")
     public FileSystemResource downloadFile(@PathVariable String fileName) {
         return fileProcessingService.downloadFile(fileName);
+    }
+
+    @GetMapping("/files/{fileName}/flags")
+    public List<AndurilFeatureFlag> getFeatureFlags(@PathVariable String fileName) {
+        return featureFlagService.getFeatureFlags(fileName);
     }
 
     @PatchMapping("/files/reset")

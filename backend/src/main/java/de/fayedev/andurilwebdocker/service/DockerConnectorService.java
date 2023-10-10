@@ -34,6 +34,8 @@ public class DockerConnectorService {
     private String dockerVolume;
     @Value("${docker.image}")
     private String dockerImage;
+    @Value("docker.socket")
+    private String dockerSocket; // TODO: Make modifiable
 
     public void build(String fileName) {
         killRunningContainers();
@@ -85,7 +87,7 @@ public class DockerConnectorService {
         List<Container> containers = dockerClient.listContainersCmd().exec();
 
         for (Container container : containers) {
-            if (container.getImage().contains(dockerImage)) {
+            if (container.getImage().equals(dockerImage)) {
                 dockerClient.stopContainerCmd(container.getId()).exec();
                 dockerClient.removeContainerCmd(container.getId()).exec();
             }

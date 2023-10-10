@@ -59,12 +59,11 @@ public class FileProcessingService {
             throw new RuntimeException(e);
         }
 
-        List<String> fileNames = paths.stream().filter(c -> Files.isRegularFile(c) && (
-                c.getFileName().toString().contains("cfg")
-                        || c.getFileName().toString().contains("hwdef"))).map(c -> c.getFileName().toString()).sorted().toList();
+        List<String> fileNames = paths.stream().filter(c -> Files.isRegularFile(c) && NameHelper.isAndurilFile(c.getFileName().toString()))
+                .map(c -> c.getFileName().toString()).sorted().toList();
 
-        List<String> buildFileNames = paths.stream().filter(c -> Files.isRegularFile(c)
-                && c.getFileName().toString().contains(".hex")).map(c -> c.getFileName().toString()).sorted().toList();
+        List<String> buildFileNames = paths.stream().filter(c -> Files.isRegularFile(c) && NameHelper.isHex(c.getFileName().toString())).
+                map(c -> c.getFileName().toString()).sorted().toList();
 
         return fileNames.stream().map(c -> AndurilFile.builder()
                 .name(c)
@@ -84,7 +83,7 @@ public class FileProcessingService {
     }
 
     public void removeFile(String fileName) {
-        Path path = fileName.contains("cfg") ? cfgFolder : hwdefFolder;
+        Path path = NameHelper.isCfg(fileName) ? cfgFolder : hwdefFolder;
 
         try {
             log.info("Removing file " + fileName);

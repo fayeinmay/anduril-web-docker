@@ -2,16 +2,15 @@ package de.fayedev.andurilwebdocker.model;
 
 import lombok.*;
 
-import java.util.List;
-
 @Builder
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AndurilFile {
+public class AndurilFeatureFlag {
 
+    private String fileName;
     private String name;
-    private String buildName;
-    private List<String> logs;
+    private String value;
+    private boolean isDefined;
 }

@@ -12,7 +12,7 @@ import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import de.fayedev.andurilwebdocker.model.AndurilFile;
-import de.fayedev.andurilwebdocker.util.NameHelper;
+import de.fayedev.andurilwebdocker.util.FileHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -63,7 +63,7 @@ public class DockerConnectorService {
                     .withHostConfig(HostConfig.newHostConfig()
                             .withBinds(Bind.parse(dockerVolume + "/anduril2-main" + ":/src"))
                             .withAutoRemove(true))
-                    .withCmd(NameHelper.convertNameToDockerArgument(fileName))
+                    .withCmd(FileHelper.convertNameToDockerArgument(fileName))
                     .exec()
                     .getId();
             dockerClient.startContainerCmd(id).exec();

@@ -1,7 +1,7 @@
 package de.fayedev.andurilwebdocker.service;
 
 import de.fayedev.andurilwebdocker.model.AndurilFile;
-import de.fayedev.andurilwebdocker.util.NameHelper;
+import de.fayedev.andurilwebdocker.util.FileHelper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -28,6 +28,8 @@ import java.util.zip.ZipInputStream;
 @Service
 @Slf4j
 public class FileProcessingService {
+
+    private final FileHelper fileHelper;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${docker.volume}")
@@ -36,17 +38,15 @@ public class FileProcessingService {
     @Value("${github.baserepo}")
     private String githubBaseRepo;
 
-    private Path hwdefFolder;
-    private Path cfgFolder;
+    public FileProcessingService(FileHelper fileHelper) {
+        this.fileHelper = fileHelper;
+    }
 
     @PostConstruct
     public void prepareInitialFiles() {
         if (isEmpty(Path.of(dockerVolume))) {
             downloadInitialFiles();
         }
-
-        hwdefFolder = Paths.get(dockerVolume, "anduril2-main");
-        cfgFolder = Paths.get(dockerVolume, "anduril2-main", "spaghetti-monster", "anduril");
     }
 
     public List<AndurilFile> getFiles() {
@@ -59,15 +59,15 @@ public class FileProcessingService {
             throw new RuntimeException(e);
         }
 
-        List<String> fileNames = paths.stream().filter(c -> Files.isRegularFile(c) && NameHelper.isAndurilFile(c.getFileName().toString()))
+        List<String> fileNames = paths.stream().filter(c -> Files.isRegularFile(c) && FileHelper.isAndurilFile(c.getFileName().toString()))
                 .map(c -> c.getFileName().toString()).sorted().toList();
 
-        List<String> buildFileNames = paths.stream().filter(c -> Files.isRegularFile(c) && NameHelper.isHex(c.getFileName().toString())).
+        List<String> buildFileNames = paths.stream().filter(c -> Files.isRegularFile(c) && FileHelper.isHex(c.getFileName().toString())).
                 map(c -> c.getFileName().toString()).sorted().toList();
 
         return fileNames.stream().map(c -> AndurilFile.builder()
                 .name(c)
-                .buildName(buildFileNames.stream().filter(x -> x.equals(NameHelper.convertNameToBuildName(c))).findFirst().orElse(null))
+                .buildName(buildFileNames.stream().filter(x -> x.equals(FileHelper.convertNameToBuildName(c))).findFirst().orElse(null))
                 .build()).toList();
     }
 
@@ -83,11 +83,9 @@ public class FileProcessingService {
     }
 
     public void removeFile(String fileName) {
-        Path path = NameHelper.isCfg(fileName) ? cfgFolder : hwdefFolder;
-
         try {
             log.info("Removing file " + fileName);
-            Files.delete(Paths.get(path.toString(), fileName));
+            Files.delete(fileHelper.getFilePath(fileName));
         } catch (IOException e) {
             log.error("IO Error: " + e);
         }
@@ -95,7 +93,7 @@ public class FileProcessingService {
 
     public FileSystemResource downloadFile(String fileName) {
         log.info("Serving file " + fileName + " to download");
-        return new FileSystemResource(Paths.get(cfgFolder.toString(), fileName).toFile());
+        return new FileSystemResource(fileHelper.getFilePath(fileName).toFile());
     }
 
     public void resetFiles() {

@@ -51,6 +51,11 @@ public class FileProcessingRestController {
         return featureFlagService.getFeatureFlags(fileName);
     }
 
+    @PostMapping("/files/{fileName}/flags")
+    public void saveFeatureFlags(@PathVariable String fileName, @RequestBody List<AndurilFeatureFlag> flags) {
+        featureFlagService.saveFeatureFlags(fileName, flags);
+    }
+
     @PatchMapping("/files/reset")
     public void resetFiles() {
         fileProcessingService.resetFiles();

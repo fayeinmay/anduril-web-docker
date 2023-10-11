@@ -59,28 +59,31 @@
 
           <v-col>
             <v-sheet min-height="50vh" rounded="lg">
-              <v-list rounded="lg" style="column-count: 2">
-                <v-list-item v-for="flag in currentFlags" :key="flag">
-                  <v-list-item-title>
-                    {{ flag.name }}
+              <VLayoutItem v-if="activeFile && activeFile.flags" :model-value="activeFile.flags.length !== 0" position="bottom" class="text-end" size="88" style="z-index:0">
+                <v-btn @click="saveFlags()" icon="mdi-content-save" size="large" color="primary" elevation="8" class="ma-3" />
+              </VLayoutItem>
+              <v-list v-if="activeFile && activeFile.flags" rounded="lg" style="column-count: 2">
+                <v-list-item v-for="flag in activeFile.flags" :key="flag">
+                  <v-list-item-title class="text-wrap">
+                    {{flag.fileName}}, Line {{ flag.line}}, {{ flag.name }}
                   </v-list-item-title>
                   <template v-slot:prepend="{ isActive }">
                     <v-list-item-action>
                       <v-checkbox-btn v-model:model-value="flag.defined"></v-checkbox-btn>
                     </v-list-item-action>
                   </template>
-                  <v-text-field :disabled="!flag.defined" :model-value="flag.value"></v-text-field>
+                  <v-text-field :disabled="!flag.defined" v-model:model-value="flag.value"></v-text-field>
                 </v-list-item>
               </v-list>
             </v-sheet>
             <v-sheet min-height="30vh" rounded="lg" class="text-center mt-6">
-              <v-textarea
+              <v-textarea v-if="activeFile"
                 label="Logs | Click on an entry on the left side after building"
                 :readonly="true"
                 variant="outlined"
                 auto-grow
                 rows="1"
-                v-model="currentLog"
+                :model-value='activeFile.logs ? activeFile.logs : ""'
               ></v-textarea>
             </v-sheet>
           </v-col>
@@ -101,8 +104,8 @@ export default {
           return value.every((i) => i.name.startsWith('cfg') || i.name.startsWith('hwdef'))
         }
       ],
-      currentLog: [],
       currentFlags: [],
+      activeFile: null,
       files: [],
       onlineFiles: []
     }
@@ -112,14 +115,14 @@ export default {
   },
   methods: {
     openFile(name) {
-      this.getFlags(name)
-      this.currentLog = this.onlineFiles.find((c) => c.name === name).logs
+      this.activeFile = this.onlineFiles.find((c) => c.name === name);
+      this.getFlags(this.activeFile)
     },
     isCfg(name) {
       return name.startsWith('cfg')
     },
     uploadFiles() {
-      if (this.files.isEmpty()) return
+      if (this.files.length === 0) return
 
       const formData = new FormData()
       for (let file of this.files) {
@@ -150,15 +153,28 @@ export default {
           console.log(e)
         })
     },
-    getFlags(name) {
+    getFlags(activeFile) {
       axios
-        .get(`/api/v1/files/${name}/flags`)
+        .get(`/api/v1/files/${activeFile.name}/flags`)
         .then((res) => {
-          this.currentFlags = res.data
+          activeFile.flags = res.data
         })
         .catch((e) => {
           console.log(e)
         })
+    },
+    saveFlags() {
+      if(!this.activeFile?.flags) return;
+
+      axios
+          .post(`/api/v1/files/${this.activeFile.name}/flags`, this.activeFile.flags)
+          .then(() => {
+            this.getFiles()
+            this.openFile(this.activeFile.name) // Reopen afterwards, TODO: Handle proper closing on remove etc., maybe add some loading screen
+          })
+          .catch((e) => {
+            console.log(e)
+          })
     },
     buildFile(name) {
       axios

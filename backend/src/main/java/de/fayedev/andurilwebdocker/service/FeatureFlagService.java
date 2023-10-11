@@ -1,16 +1,13 @@
 package de.fayedev.andurilwebdocker.service;
 
 import de.fayedev.andurilwebdocker.model.AndurilFeatureFlag;
-import de.fayedev.andurilwebdocker.util.NameHelper;
-import jakarta.annotation.PostConstruct;
+import de.fayedev.andurilwebdocker.util.FileHelper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -19,41 +16,71 @@ import java.util.List;
 @Slf4j
 public class FeatureFlagService {
 
-    @Value("${docker.volume}")
-    private String dockerVolume;
+    private final FileHelper fileHelper;
 
-    // TODO: Resolve code duplication
-    private Path hwdefFolder;
-    private Path cfgFolder;
-
-    @PostConstruct
-    public void prepareInitialFiles() {
-        hwdefFolder = Paths.get(dockerVolume, "anduril2-main");
-        cfgFolder = Paths.get(dockerVolume, "anduril2-main", "spaghetti-monster", "anduril");
+    public FeatureFlagService(FileHelper fileHelper) {
+        this.fileHelper = fileHelper;
     }
 
     public List<AndurilFeatureFlag> getFeatureFlags(String fileName) {
-        String folder = NameHelper.isCfg(fileName) ? cfgFolder.toString() : hwdefFolder.toString();
-        try {
-            List<String> file = Files.readAllLines(Path.of(folder, fileName));
-            List<AndurilFeatureFlag> flags = new ArrayList<>();
+        List<String> file = readFileLines(fileName);
+        List<AndurilFeatureFlag> flags = new ArrayList<>();
 
-            for (String line : file) {
-                AndurilFeatureFlag flag = readFlag(fileName, line);
+        for (int i = 0; i < file.size(); i++) {
+            AndurilFeatureFlag flag = readFlag(fileName, file.get(i), i); // Index 0 for saving feature flag
 
-                if (flag != null) {
-                    flags.add(flag);
-                }
+            if (flag != null) {
+                flags.add(flag);
             }
+        }
 
-            return flags;
+        return flags;
+    }
+
+    public void saveFeatureFlags(String fileName, List<AndurilFeatureFlag> flags) {
+        List<String> file = readFileLines(fileName);
+
+        for (AndurilFeatureFlag flag : flags) {
+            file.set(flag.getLine(), buildFlagString(flag));
+        }
+
+        try {
+            Files.write(fileHelper.getFilePath(fileName), file, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            log.error("IO Error: " + e);
+        }
+    }
+
+    private List<String> readFileLines(String fileName) {
+        try {
+            return Files.readAllLines(fileHelper.getFilePath(fileName));
         } catch (IOException e) {
             log.error("IO Error: " + e);
             return new ArrayList<>();
         }
     }
 
-    private AndurilFeatureFlag readFlag(String fileName, String line) {
+    private String buildFlagString(AndurilFeatureFlag flag) {
+        StringBuilder sb = new StringBuilder();
+
+        if (flag.isDefined()) {
+            sb.append("#define");
+        } else {
+            sb.append("#undef");
+        }
+
+        sb.append(" ");
+        sb.append(flag.getName());
+
+        if (flag.isDefined() && flag.getValue() != null && !flag.getValue().isBlank()) {
+            sb.append(" ");
+            sb.append(flag.getValue());
+        }
+
+        return sb.toString();
+    }
+
+    private AndurilFeatureFlag readFlag(String fileName, String line, int lineCount) {
         if (line.startsWith("#define") || line.startsWith("#undef")) {
             AndurilFeatureFlag andurilFeatureFlag = new AndurilFeatureFlag();
 
@@ -70,6 +97,7 @@ public class FeatureFlagService {
             andurilFeatureFlag.setName(seperated.get(1));
 
             andurilFeatureFlag.setFileName(fileName);
+            andurilFeatureFlag.setLine(lineCount);
 
             if (seperated.size() > 2) {
                 andurilFeatureFlag.setValue(seperated.get(2));
@@ -79,7 +107,7 @@ public class FeatureFlagService {
         }
 
         if (line.startsWith("#include")) {
-            // Handle
+            // TODO: Handle
         }
 
         return null;

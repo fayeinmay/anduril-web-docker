@@ -11,6 +11,8 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -22,7 +24,27 @@ public class FeatureFlagService {
         this.fileHelper = fileHelper;
     }
 
-    public List<AndurilFeatureFlag> getFeatureFlags(String fileName) {
+    public List<AndurilFeatureFlag> getFeatureFlags(String fileName, List<AndurilFeatureFlag> flags) {
+        List<AndurilFeatureFlag> tempFlags = getFeatureFlagsFromFile(fileName);
+
+        if (flags.isEmpty()) {
+            flags.addAll(tempFlags);
+        } else {
+            // Remove entries if already defined in parent.
+            tempFlags.removeIf(c -> flags.stream().anyMatch(x -> x.getName().equals(c.getName())));
+            flags.addAll(tempFlags);
+        }
+
+        List<String> includes = getIncludesFromFile(fileName);
+
+        for (String include : includes) {
+            getFeatureFlags(include, flags);
+        }
+
+        return flags;
+    }
+
+    private List<AndurilFeatureFlag> getFeatureFlagsFromFile(String fileName) {
         List<String> file = readFileLines(fileName);
         List<AndurilFeatureFlag> flags = new ArrayList<>();
 
@@ -38,16 +60,20 @@ public class FeatureFlagService {
     }
 
     public void saveFeatureFlags(String fileName, List<AndurilFeatureFlag> flags) {
-        List<String> file = readFileLines(fileName);
+        Map<String, List<AndurilFeatureFlag>> nested = flags.stream().collect(Collectors.groupingBy(AndurilFeatureFlag::getFileName));
 
-        for (AndurilFeatureFlag flag : flags) {
-            file.set(flag.getLine(), buildFlagString(flag));
-        }
+        for (Map.Entry<String, List<AndurilFeatureFlag>> nestedFlags : nested.entrySet()) {
+            List<String> file = readFileLines(nestedFlags.getKey());
 
-        try {
-            Files.write(fileHelper.getFilePath(fileName), file, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            log.error("IO Error: " + e);
+            for (AndurilFeatureFlag flag : nestedFlags.getValue()) {
+                file.set(flag.getLine(), buildFlagString(flag));
+            }
+
+            try {
+                Files.write(fileHelper.getFilePath(nestedFlags.getKey()), file, StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                log.error("IO Error: " + e);
+            }
         }
     }
 
@@ -80,6 +106,33 @@ public class FeatureFlagService {
         return sb.toString();
     }
 
+    private List<String> getIncludesFromFile(String fileName) {
+        List<String> file = readFileLines(fileName);
+        List<String> includes = new ArrayList<>();
+
+        for (String line : file) {
+            String include = readInclude(line);
+
+            if (include != null) {
+                includes.add(include);
+            }
+        }
+
+        return includes;
+    }
+
+    private String readInclude(String line) {
+        if (line.startsWith("#include")) {
+            String includeName = line.split(" ")[1].replace("\"", "");
+
+            if (!includeName.contains("avr") && !includeName.contains("fsm") && !includeName.contains("chan")) {
+                return includeName;
+            }
+        }
+
+        return null;
+    }
+
     private AndurilFeatureFlag readFlag(String fileName, String line, int lineCount) {
         if (line.startsWith("#define") || line.startsWith("#undef")) {
             AndurilFeatureFlag andurilFeatureFlag = new AndurilFeatureFlag();
@@ -100,14 +153,10 @@ public class FeatureFlagService {
             andurilFeatureFlag.setLine(lineCount);
 
             if (seperated.size() > 2) {
-                andurilFeatureFlag.setValue(seperated.get(2));
+                andurilFeatureFlag.setValue(seperated.stream().skip(2).collect(Collectors.joining()).split("//")[0]);
             }
 
             return andurilFeatureFlag;
-        }
-
-        if (line.startsWith("#include")) {
-            // TODO: Handle
         }
 
         return null;

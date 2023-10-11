@@ -46,6 +46,6 @@ public class FileHelper {
     }
 
     public Path getFilePath(String fileName) {
-        return Path.of(FileHelper.isCfg(fileName) ? cfgFolder.toString() : hwdefFolder.toString(), fileName);
+        return Path.of(FileHelper.isHwdef(fileName) ? hwdefFolder.toString() : cfgFolder.toString(), fileName);
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -48,7 +49,7 @@ public class FileProcessingRestController {
 
     @GetMapping("/files/{fileName}/flags")
     public List<AndurilFeatureFlag> getFeatureFlags(@PathVariable String fileName) {
-        return featureFlagService.getFeatureFlags(fileName);
+        return featureFlagService.getFeatureFlags(fileName, new ArrayList<>());
     }
 
     @PostMapping("/files/{fileName}/flags")

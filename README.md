@@ -2,6 +2,8 @@
 
 ## How to use
 
+Please do not use root for any of the following steps.
+
 You must set the following environment variables:
 
 * SERVER_PORT=8080
@@ -29,13 +31,15 @@ See https://docs.docker.com/engine/install/ubuntu/
 
 ## How to allow your user account to access docker
 
-1. usermod -A -G docker youruser
+1. sudo usermod -A -G docker youruser
 2. Close and reopen your ssh session or if you are not using a server, log off and log in again
 
 ## How to install java on ubuntu
 
-1. apt-get install openjdk-17-jre-headless -y
+1. sudo apt-get install openjdk-17-jre-headless -y
 
 ## How to start the application jar
 
-1. java -jar <filename>.jar
+1. Adjust the following commands depending on the actual version you're going to use. All version links can be found on https://github.com/fayeinmay/anduril-web-docker/releases
+2. wget https://github.com/fayeinmay/anduril-web-docker/releases/download/1.0.0/anduril-web-docker-backend-0.0.1-SNAPSHOT.jar
+3. java -jar anduril-web-docker-backend-0.0.1-SNAPSHOT.jar 

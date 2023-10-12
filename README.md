@@ -31,7 +31,7 @@ See https://docs.docker.com/engine/install/ubuntu/
 
 ## How to allow your user account to access docker
 
-1. sudo usermod -A -G docker youruser
+1. sudo usermod -a -G docker youruser
 2. Close and reopen your ssh session or if you are not using a server, log off and log in again
 
 ## How to install java on ubuntu

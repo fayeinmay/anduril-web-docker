@@ -49,7 +49,11 @@ public class FileProcessingRestController {
 
     @GetMapping("/files/{fileName}/flags")
     public List<AndurilFeatureFlag> getFeatureFlags(@PathVariable String fileName) {
-        return featureFlagService.getFeatureFlags(fileName, new ArrayList<>());
+        List<AndurilFeatureFlag> one = featureFlagService.getFeatureFlags(fileName, new ArrayList<>());
+        List<AndurilFeatureFlag> two = featureFlagService.getFeatureFlags("config-default.h", new ArrayList<>());
+        two.removeIf(c -> one.stream().anyMatch(x -> x.getName().equals(c.getName())));
+        one.addAll(two);
+        return one;
     }
 
     @PostMapping("/files/{fileName}/flags")

@@ -19,7 +19,7 @@ public class FileProcessingRestController {
 
     private final FileProcessingService fileProcessingService;
     private final DockerConnectorService dockerConnectorService;
-    private FeatureFlagService featureFlagService;
+    private final FeatureFlagService featureFlagService;
 
     public FileProcessingRestController(FeatureFlagService featureFlagService, FileProcessingService fileProcessingService, DockerConnectorService dockerConnectorService) {
         this.featureFlagService = featureFlagService;

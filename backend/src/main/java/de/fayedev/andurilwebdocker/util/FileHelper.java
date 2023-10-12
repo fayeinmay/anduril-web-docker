@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 @Component
 public class FileHelper {
@@ -41,11 +40,19 @@ public class FileHelper {
 
     @PostConstruct
     public void prepareInitialFiles() {
-        hwdefFolder = Paths.get(dockerVolume, "anduril2-main");
-        cfgFolder = Paths.get(dockerVolume, "anduril2-main", "spaghetti-monster", "anduril");
+        hwdefFolder = Path.of(dockerVolume, "anduril2-main");
+        cfgFolder = Path.of(dockerVolume, "anduril2-main", "spaghetti-monster", "anduril");
     }
 
     public Path getFilePath(String fileName) {
         return Path.of(FileHelper.isHwdef(fileName) ? hwdefFolder.toString() : cfgFolder.toString(), fileName);
+    }
+
+    public Path getBuildShPath() {
+        return Path.of(dockerVolume, "anduril2-main", "bin", "build.sh");
+    }
+
+    public Path getBuildAllShPath() {
+        return Path.of(dockerVolume, "anduril2-main", "spaghetti-monster", "anduril", "build-all.sh");
     }
 }

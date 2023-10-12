@@ -19,7 +19,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -52,7 +51,7 @@ public class FileProcessingService {
     public List<AndurilFile> getFiles() {
         List<Path> paths;
 
-        try (Stream<Path> walk = Files.walk(Paths.get(dockerVolume))) {
+        try (Stream<Path> walk = Files.walk(Path.of(dockerVolume))) {
             paths = walk.toList();
         } catch (IOException e) {
             log.error("IO Error: " + e);
@@ -115,7 +114,11 @@ public class FileProcessingService {
         });
 
         if (file != null) {
+            log.info("Unzipping initial files...");
             unzipContent(file);
+            log.info("Setting file permissions ...");
+            new File(fileHelper.getBuildShPath().toString()).setExecutable(true);
+            new File(fileHelper.getBuildAllShPath().toString()).setExecutable(true);
         }
     }
 

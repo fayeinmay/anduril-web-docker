@@ -96,7 +96,7 @@
             <v-sheet min-height="30vh" rounded="lg" class="text-center mt-6">
               <v-textarea
                 v-if="activeFile"
-                label="Logs | Click on an entry on the left side after building"
+                label="Logs | Click on an entry on the left side after building (Might take some seconds)"
                 :readonly="true"
                 variant="outlined"
                 auto-grow

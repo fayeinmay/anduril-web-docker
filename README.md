@@ -7,10 +7,11 @@ You must set the following environment variables:
 * SERVER_PORT=8080
 * DOCKER_VOLUME=/your/selected/folder !!! Pick any folder, like /home/youruser/anduril Make sure this folder exists and is empty !!!
 * DOCKER_IMAGE=siterelenby/anduril-builder:latest
-* DOCKER_SOCKET=unix:///var/run/docker.sock
 * GITHUB_BASEREPO=https://github.com/SiteRelEnby/anduril2/archive/refs/heads/main.zip
 
 You must have docker installed and running to mount the docker socket.
+
+Your user account must have permissions to access docker.
 
 You must have java installed.
 
@@ -20,10 +21,16 @@ You can now start the application jar and use the webinterface (Open your browse
 
 1. nano ~/.bash_profile
 2. Add: export THE_VARIABLE=THE_VALUE at the end of the file for each variable listed, separated by a new line.
+3. source ~/.bash_profile
 
 ## How to install docker on ubuntu
 
 See https://docs.docker.com/engine/install/ubuntu/
+
+## How to allow your user account to access docker
+
+1. usermod -A -G docker youruser
+2. Close and reopen your ssh session or if you are not using a server, log off and log in again
 
 ## How to install java on ubuntu
 

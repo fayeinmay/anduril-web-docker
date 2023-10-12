@@ -34,8 +34,6 @@ public class DockerConnectorService {
     private String dockerVolume;
     @Value("${docker.image}")
     private String dockerImage;
-    @Value("docker.socket")
-    private String dockerSocket; // TODO: Make modifiable
 
     public void build(String fileName) {
         killRunningContainers();
